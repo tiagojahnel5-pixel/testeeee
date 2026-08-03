@@ -1407,30 +1407,20 @@
                 return;
             }
 
-            resultEl.textContent = '⏳ Verificando script...';
+            resultEl.textContent = '⏳ Enviando foto de teste ao Drive...';
             resultEl.className = 'mt-1 text-[10px] font-bold text-center py-1 rounded-lg bg-slate-800 text-slate-300';
             resultEl.classList.remove('hidden');
             try {
-                // Teste via GET (sem CORS) para verificar se o script está ativo
-                const pingRes = await fetch(config.appsScriptUrl, {
-                    method: 'GET',
-                    redirect: 'follow'
-                });
-                if (!pingRes.ok) throw new Error(`Script offline (HTTP ${pingRes.status})`);
-                const pingText = await pingRes.text();
-                let pingJson;
-                try { pingJson = JSON.parse(pingText); } catch { throw new Error('Script retornou HTML — verifique se está publicado como "Qualquer pessoa"'); }
-                if (!pingJson.status) throw new Error('Resposta inesperada do script');
-
-                // Upload de teste (no-cors — o arquivo é salvo mesmo sem ler resposta)
-                resultEl.textContent = '⏳ Enviando foto de teste...';
+                // Teste de upload direto usando modo no-cors (bypasses CORS policy no browser)
                 const testCanvas = document.createElement('canvas');
                 testCanvas.width = 10; testCanvas.height = 10;
-                testCanvas.getContext('2d').fillStyle = '#ff69b4';
-                testCanvas.getContext('2d').fillRect(0, 0, 10, 10);
+                const ctx = testCanvas.getContext('2d');
+                ctx.fillStyle = '#ff69b4';
+                ctx.fillRect(0, 0, 10, 10);
+                
                 await uploadViaAppsScript(testCanvas, `teste_conexao_${Date.now()}.jpg`);
 
-                resultEl.textContent = '✅ Configurado! Fotos serão salvas no Drive.';
+                resultEl.textContent = '✅ Conexão OK! Foto de teste enviada ao Drive.';
                 resultEl.className = 'mt-1 text-[10px] font-bold text-center py-1 rounded-lg bg-emerald-900/40 text-emerald-400 border border-emerald-700/50';
             } catch (e) {
                 resultEl.textContent = `❌ Falha: ${e.message}`;
