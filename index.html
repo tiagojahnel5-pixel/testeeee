@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#090d16">
     <title>Cabine de Fotos Profissional</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -164,8 +168,13 @@
             </div>
         </div>
 
+        <!-- Botão de Tela Cheia Kiosk -->
+        <button onclick="toggleFullscreen()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-90 border border-slate-700/80 flex-shrink-0 ml-2" title="Modo Tela Cheia">
+            <i class="fa-solid fa-expand text-xs sm:text-sm"></i>
+        </button>
+
         <!-- Botão Secreto de Configurações (Acesso Protegido por PIN) -->
-        <button onclick="requestPinAccess()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-90 border border-slate-700/80 flex-shrink-0 ml-2" title="Painel do Administrador">
+        <button onclick="requestPinAccess()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-90 border border-slate-700/80 flex-shrink-0 ml-1.5" title="Painel do Administrador">
             <i class="fa-solid fa-lock text-xs sm:text-sm"></i>
         </button>
     </header>
@@ -672,6 +681,17 @@
             frame.srcdoc = printHtml;
         }
         // ────────────────────────────────────────────────────────────
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) docEl.requestFullscreen();
+                else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        }
 
         function requestPinAccess() {
             document.getElementById('admin-pin-input').value = '';
