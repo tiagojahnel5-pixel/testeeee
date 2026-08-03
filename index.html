@@ -648,7 +648,12 @@
 <html><head>
 <meta charset="UTF-8">
 <style>
-  @page { size: 100mm 150mm portrait; margin: 0; }
+  @page { size: 4in 6in portrait; margin: 0; }
+  @media print {
+    @page { size: 4in 6in portrait; margin: 0; }
+    html, body { width: 4in; height: 6in; margin: 0; padding: 0; background: white; overflow: hidden; }
+    img { display: block; width: 4in; height: 6in; object-fit: fill; page-break-after: avoid; }
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100mm; height: 150mm; background: white; overflow: hidden; }
   img { display: block; width: 100mm; height: 150mm; object-fit: fill; }
