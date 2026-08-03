@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cabine de Fotos Profissional</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;0,900;1,900&family=Pacifico&display=swap" rel="stylesheet">
+    <!-- QRious & QRCode Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+    <style>
+        * {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100dvh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Montserrat', sans-serif;
+            background: #090d16;
+            color: #f8fafc;
+        }
+
+        .font-pacifico {
+            font-family: 'Pacifico', cursive;
+        }
+
+        /* Efeito Flash Profissional */
+        #flash-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: #ffffff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 99999;
+            transition: opacity 0.08s ease-out;
+        }
+        #flash-overlay.active {
+            opacity: 1;
+            transition: opacity 0.02s ease-in;
+        }
+
+        /* Animação de Pulsar do Botão Principal */
+        @keyframes pulse-glow {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 25px rgba(236, 72, 153, 0.5), 0 0 50px rgba(168, 85, 247, 0.3);
+            }
+            50% {
+                transform: scale(1.03);
+                box-shadow: 0 0 40px rgba(236, 72, 153, 0.8), 0 0 80px rgba(168, 85, 247, 0.6);
+            }
+        }
+        .btn-pulse {
+            animation: pulse-glow 2.5s infinite ease-in-out;
+        }
+
+        /* Barra de Progresso do Reseta Automático */
+        @keyframes shrink-width {
+            from { width: 100%; }
+            to { width: 0%; }
+        }
+        .progress-shrink {
+            animation: shrink-width var(--timeout-duration, 20s) linear forwards;
+        }
+
+        /* Suporte a Rotação Automática de Tela do Celular (Landscape / Portrait) */
+        @media (orientation: landscape) {
+            #screen-capture video {
+                width: 100vw !important;
+                height: 100vh !important;
+                object-fit: cover !important;
+            }
+        }
+
+        /* Estilos Exclusivos para Impressão Direct Canon 10x15cm */
+        @media print {
+            @page {
+                size: 100mm 150mm portrait;
+                margin: 0mm;
+            }
+            html, body {
+                width: 100mm !important;
+                height: 150mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                overflow: hidden !important;
+            }
+            body * {
+                visibility: hidden !important;
+            }
+            #print-area, #print-area * {
+                visibility: visible !important;
+            }
+            #print-area {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100mm !important;
+                height: 150mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                display: block !important;
+                z-index: 999999 !important;
+            }
+            #print-area img {
+                display: block !important;
+                width: 100mm !important;
+                height: 150mm !important;
+                object-fit: fill !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+
+        /* Iframe de Impressão Silenciosa */
+        #silent-print-frame {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 0;
+            height: 0;
+            border: none;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body class="w-full h-[100dvh] min-h-0 flex flex-col justify-between items-center relative p-2 sm:p-4 select-none overflow-hidden">
+
+    <!-- Flash de Estúdio Visual -->
+    <div id="flash-overlay"></div>
+
+    <!-- Caixa de Notificação / Alerta de Erro da Câmera -->
+    <div id="camera-error-banner" class="hidden fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-5 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2.5 border border-red-400 max-w-[90vw]">
+        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+        <span id="camera-error-msg" class="text-xs sm:text-sm font-bold">Erro ao acessar a câmera. Verifique as permissões.</span>
+    </div>
+
+    <!-- Top Bar / Navbar Minimalista -->
+    <header class="w-full max-w-4xl flex justify-between items-center px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 shadow-xl z-20 flex-shrink-0 my-1">
+        <div class="flex items-center gap-2.5 sm:gap-3 overflow-hidden">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-500 flex items-center justify-center text-white text-base sm:text-lg shadow-md shadow-pink-500/30 flex-shrink-0">
+                <i class="fa-solid fa-camera-retro"></i>
+            </div>
+            <div class="overflow-hidden">
+                <h1 id="header-event-title" class="text-xs sm:text-base font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-300 to-indigo-200 truncate">ANIVERSÁRIO CAIO & HELOÍSA 🎉</h1>
+                <p id="header-event-subtitle" class="text-[9px] sm:text-xs text-slate-400 font-semibold truncate">Cabine de Fotos • 08/08/2026</p>
+            </div>
+        </div>
+
+        <!-- Botão Secreto de Configurações (Acesso Protegido por PIN) -->
+        <button onclick="requestPinAccess()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition active:scale-90 border border-slate-700/80 flex-shrink-0 ml-2" title="Painel do Administrador">
+            <i class="fa-solid fa-lock text-xs sm:text-sm"></i>
+        </button>
+    </header>
+
+    <!-- TELA 1: TELA INICIAL (START SCREEN) -->
+    <section id="screen-start" class="w-full max-w-2xl my-auto flex flex-col items-center justify-center text-center py-2 px-3 z-10 overflow-y-auto max-h-[calc(100dvh-80px)] min-h-0">
+        <!-- Badge de Boas Vindas -->
+        <div class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-400 text-[11px] sm:text-sm font-bold mb-3 sm:mb-4 tracking-wide uppercase">
+            <i class="fa-solid fa-sparkles text-xs"></i> Cabine de Fotos Instantânea
+        </div>
+
+        <h2 class="text-xl sm:text-4xl md:text-5xl font-black text-white leading-snug sm:leading-tight tracking-tight max-w-xl">
+            Prepare o sorriso e venha registrar esse <span class="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-400 to-indigo-400">momento especial</span> com a gente!
+        </h2>
+        <p class="mt-2.5 sm:mt-3 text-slate-300 text-xs sm:text-base max-w-md font-medium leading-relaxed">
+            Serão tiradas 3 fotos sem pressa. No final, você leva sua foto 10x15cm impressa na hora e garante a versão digital no celular!
+        </p>
+
+        <!-- Botão Gigante de Iniciar -->
+        <button onclick="startSession()" class="mt-5 sm:mt-8 px-6 sm:px-10 py-4 sm:py-6 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white font-black text-lg sm:text-2xl md:text-3xl rounded-full shadow-2xl btn-pulse transform active:scale-95 transition flex items-center gap-3 sm:gap-4 border-2 border-white/20">
+            <i class="fa-solid fa-hand-pointer text-lg sm:text-2xl"></i> TOQUE PARA COMEÇAR
+        </button>
+    </section>
+
+    <!-- TELA 2: CÂMERA E CONTAGEM REGRESSIVA (FULL SCREEN) -->
+    <section id="screen-capture" class="hidden fixed inset-0 w-full h-full bg-black z-40 flex flex-col items-center justify-center overflow-hidden">
+        <!-- Feed da Câmera Espelhado (Full Screen) -->
+        <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover transform -scale-x-100"></video>
+        <canvas id="capture-canvas" class="hidden"></canvas>
+
+        <!-- Header da Câmera (Overlay Superior) -->
+        <div class="absolute top-0 left-0 right-0 p-3 sm:p-4 flex justify-between items-center z-50 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+            <span id="cam-event-name" class="text-xs sm:text-sm font-bold text-pink-400">Cabine de Fotos</span>
+            <span id="photo-index-badge" class="text-xs sm:text-sm font-bold bg-black/60 border border-white/20 px-3 py-1 rounded-full text-purple-300 shadow-2xl backdrop-blur-md">
+                <i class="fa-solid fa-camera mr-1"></i> Foto <span id="current-photo-num">1</span> de 3
+            </span>
+        </div>
+
+        <!-- Overlay de Contagem Regressiva (Número Gigante Centralizado) -->
+        <div id="countdown-overlay" class="absolute inset-0 flex flex-col items-center justify-center text-white pointer-events-none z-50 p-2">
+            <span id="countdown-number" class="text-8xl sm:text-9xl md:text-[11rem] font-black text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)] animate-bounce">5</span>
+        </div>
+
+        <!-- Dots de Progresso na Parte Inferior -->
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-50">
+            <div id="dot-0" class="w-3.5 h-3.5 rounded-full bg-white/30 border-2 border-white/60 transition-all duration-300"></div>
+            <div id="dot-1" class="w-3.5 h-3.5 rounded-full bg-white/30 border-2 border-white/60 transition-all duration-300"></div>
+            <div id="dot-2" class="w-3.5 h-3.5 rounded-full bg-white/30 border-2 border-white/60 transition-all duration-300"></div>
+        </div>
+    </section>
+
+    <!-- TELA 3: PROCESSANDO E GERANDO QUADRO -->
+    <section id="screen-processing" class="hidden w-full max-w-sm my-auto flex flex-col items-center justify-center text-center z-10 p-4 min-h-0">
+        <div class="w-12 h-12 sm:w-16 sm:h-16 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin mb-4"></div>
+        <h3 class="text-lg sm:text-2xl font-black text-white">Montando seu Quadro 10x15cm...</h3>
+        <p class="text-slate-400 mt-2 text-xs sm:text-sm font-medium">Organizando as 3 fotos em altíssima resolução para impressão.</p>
+    </section>
+
+    <!-- TELA 4: RESULTADO / BOTÕES / QR CODE AUTOMÁTICO -->
+    <section id="screen-result" class="hidden w-full max-w-4xl my-auto flex flex-col md:flex-row items-center justify-center gap-3 sm:gap-6 z-10 overflow-y-auto max-h-[calc(100dvh-75px)] p-1 min-h-0">
+        <!-- Preview da Folha 10x15cm -->
+        <div class="flex flex-col items-center flex-shrink-0 w-full md:w-auto">
+            <div class="bg-slate-900/90 border border-slate-800 p-2 sm:p-3 rounded-2xl shadow-2xl max-w-full flex justify-center">
+                <img id="final-sheet-img" class="max-h-[32dvh] sm:max-h-[420px] w-auto object-contain rounded-lg border border-slate-700" alt="Foto 10x15cm 3 Fotos">
+            </div>
+            <span class="text-[10px] sm:text-xs text-slate-400 font-semibold mt-1">Sua foto 10x15cm está pronta!</span>
+        </div>
+
+        <!-- Painel Lateral da Foto & Botões -->
+        <div class="flex flex-col items-center md:items-start gap-2.5 sm:gap-3.5 bg-slate-900/80 border border-slate-800 p-3 sm:p-5 rounded-2xl sm:rounded-3xl max-w-sm w-full shadow-2xl backdrop-blur-md flex-shrink-0">
+            <div>
+                <h3 class="text-base sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-indigo-300">Sua Foto Ficou Pronta! 📸</h3>
+                <p class="text-[10px] sm:text-xs text-slate-300 mt-0.5">Escolha uma opção abaixo para baixar ou imprimir.</p>
+            </div>
+
+            <!-- Bloco do QR Code -->
+            <div class="w-full bg-slate-950 p-2.5 sm:p-3 rounded-xl border border-slate-800 flex items-center gap-3">
+                <div id="qrcode" class="p-1 bg-white rounded-lg flex-shrink-0 shadow-md min-w-[90px] min-h-[90px] flex items-center justify-center">
+                    <div id="qr-loading-spinner" class="w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <div>
+                    <span class="text-[9px] font-black tracking-wider uppercase text-pink-400">Download Digital</span>
+                    <h4 class="text-xs sm:text-sm font-bold text-white">Baixar no Celular</h4>
+                    <p id="qr-subtext" class="text-[9px] sm:text-xs text-slate-400 mt-0.5">Aponte a câmera do seu celular.</p>
+                </div>
+            </div>
+
+            <!-- OS 3 BOTÕES PRINCIPAIS DE AÇÃO -->
+            <div class="w-full flex flex-col gap-2 mt-1">
+                <button onclick="printPhoto()" class="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-black text-sm rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-print"></i> 🖨️ IMPRIMIR FOTO
+                </button>
+                <button onclick="startSession()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 font-bold text-xs sm:text-sm rounded-xl transition active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> 🔄 REFAZER FOTOS
+                </button>
+                <button onclick="resetToStart()" class="w-full py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 font-bold text-xs rounded-xl transition active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-xmark"></i> ✕ CANCELAR
+                </button>
+            </div>
+
+            <!-- Timer de Reinício Automático -->
+            <div class="w-full flex flex-col gap-1 mt-1 pt-2 border-t border-slate-800/80">
+                <div class="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400">
+                    <span>Próxima pessoa em <span id="timeout-seconds-display">20</span>s</span>
+                    <button onclick="resetToStart()" class="text-pink-400 hover:underline">Ir Agora <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div id="reset-progress-bar" class="bg-gradient-to-r from-pink-500 to-purple-500 h-full w-full"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal Administrativo de Configurações das Festas -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 w-full max-w-md shadow-2xl flex flex-col gap-3 max-h-[92dvh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-lg font-extrabold text-white"><i class="fa-solid fa-sliders text-pink-500 mr-2"></i> Configurar Evento</h3>
+                <button onclick="closeSettings()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="flex flex-col gap-2.5 text-xs">
+                <div>
+                    <label class="font-bold text-slate-400 uppercase">Título do Aniversário</label>
+                    <input type="text" id="cfg-title" value="ANIVERSÁRIO CAIO & HELOÍSA 🎉" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold focus:outline-none focus:border-pink-500">
+                </div>
+
+                <div>
+                    <label class="font-bold text-slate-400 uppercase">Subtítulo / Data no Rodapé</label>
+                    <input type="text" id="cfg-subtitle" value="08/08/2026" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold focus:outline-none focus:border-pink-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-bold text-slate-400 uppercase">Contagem (Seg)</label>
+                        <select id="cfg-countdown" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold focus:outline-none focus:border-pink-500">
+                            <option value="3">3 Segundos</option>
+                            <option value="5" selected>5 Segundos</option>
+                            <option value="10">10 Segundos</option>
+                            <option value="15">15 Segundos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-400 uppercase">Tempo Resultado (Seg)</label>
+                        <select id="cfg-timeout" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold focus:outline-none focus:border-pink-500">
+                            <option value="10">10 Segundos</option>
+                            <option value="15">15 Segundos</option>
+                            <option value="20" selected>20 Segundos</option>
+                            <option value="30">30 Segundos</option>
+                            <option value="60">60 Segundos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-bold text-slate-400 uppercase">Senha PIN</label>
+                        <input type="password" id="cfg-pin" maxlength="4" value="1234" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold text-center tracking-widest focus:outline-none focus:border-pink-500">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="font-bold text-slate-400 uppercase">Som</label>
+                            <button onclick="testShutterSound()" class="text-[10px] text-pink-400 hover:underline font-bold"><i class="fa-solid fa-volume-high mr-1"></i>Testar</button>
+                        </div>
+                        <select id="cfg-sound" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold focus:outline-none focus:border-pink-500">
+                            <option value="dslr" selected>📸 DSLR Realista</option>
+                            <option value="digital">⚡ Bip Eletrônico</option>
+                            <option value="silent">🔇 Silencioso</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-1">
+                    <label class="font-bold text-slate-400 uppercase">Impressão Automática ao Final</label>
+                    <input type="checkbox" id="cfg-autoprint" class="w-5 h-5 accent-pink-500">
+                </div>
+
+                <!-- Seção de Moldura Customizada e Posição das Fotos -->
+                <div class="border-t border-slate-800 pt-2.5 mt-1">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-bold text-slate-400 uppercase">Moldura Personalizada (PNG/JPG)</label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="file" id="cfg-frame-file" accept="image/*" class="hidden" onchange="handleFrameUpload(event)">
+                        <button onclick="document.getElementById('cfg-frame-file').click()" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-image text-pink-400"></i> Escolher Moldura PNG
+                        </button>
+                        <button id="btn-remove-frame" onclick="removeCustomFrame()" class="hidden py-2 px-3 bg-red-900/40 border border-red-700/50 text-red-400 font-bold rounded-xl text-xs">
+                            Remover
+                        </button>
+                    </div>
+                    <span id="frame-status-lbl" class="text-[10px] text-slate-500 mt-1 block">Usando Moldura Padrão (Futebol Caio & Heloísa).</span>
+
+                    <!-- Posições dos 3 Espaços na Moldura (%) -->
+                    <div class="mt-3 pt-2 border-t border-slate-800/60 flex flex-col gap-2">
+                        <label class="font-bold text-slate-400 uppercase text-[10px]"><i class="fa-solid fa-ruler-combined text-pink-400 mr-1"></i> Posição das Fotos na Moldura (%)</label>
+
+                        <div class="grid grid-cols-4 gap-1.5 text-center">
+                            <span class="text-[9px] font-bold text-slate-500">X%</span>
+                            <span class="text-[9px] font-bold text-slate-500">Y%</span>
+                            <span class="text-[9px] font-bold text-slate-500">Larg%</span>
+                            <span class="text-[9px] font-bold text-slate-500">Alt%</span>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5">
+                            <span class="text-[9px] font-bold text-slate-400">Foto 1 (esq. superior):</span>
+                            <div class="grid grid-cols-4 gap-1.5">
+                                <input type="number" id="s0x" value="7" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s0y" value="28" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s0w" value="39.5" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s0h" value="27" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                            </div>
+
+                            <span class="text-[9px] font-bold text-slate-400">Foto 2 (dir. superior):</span>
+                            <div class="grid grid-cols-4 gap-1.5">
+                                <input type="number" id="s1x" value="53" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s1y" value="28" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s1w" value="39.5" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s1h" value="27" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                            </div>
+
+                            <span class="text-[9px] font-bold text-slate-400">Foto 3 (inferior central):</span>
+                            <div class="grid grid-cols-4 gap-1.5">
+                                <input type="number" id="s2x" value="30" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s2y" value="59" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s2w" value="39.5" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                                <input type="number" id="s2h" value="25" step="0.5" class="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white font-semibold text-center text-xs">
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="previewSlotPositions()" class="mt-1 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-purple-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-eye"></i> Visualizar posições na moldura
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Seção Google Drive via Apps Script (QR Code) -->
+                <div class="border-t border-slate-800 pt-2.5 mt-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fa-brands fa-google-drive text-emerald-400 text-sm"></i>
+                        <label class="font-bold text-slate-300 uppercase text-xs">Google Drive (QR Code)</label>
+                        <span id="gdrive-status-badge" class="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 border border-slate-600">Não configurado</span>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-400 uppercase text-[10px]">URL do Apps Script</label>
+                        <input type="text" id="cfg-apps-script-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold text-[10px] focus:outline-none focus:border-emerald-500 font-mono">
+                        <p class="text-[9px] text-slate-500 mt-1">Cole a URL gerada após implantar o Apps Script como <span class="text-emerald-400">App da Web</span></p>
+                    </div>
+                    <button onclick="testGDriveConnection()" class="mt-2 w-full py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-plug text-emerald-400"></i> Testar Conexão
+                    </button>
+                    <div id="gdrive-test-result" class="hidden mt-1 text-[10px] font-bold text-center py-1 rounded-lg"></div>
+                </div>
+
+                <!-- Botão Secreto de Reimpressão -->
+                <div class="border-t border-slate-800 pt-2.5 mt-1">
+                    <button onclick="printPhoto(); closeSettings();" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-print"></i> REIMPRIMIR ÚLTIMA FOTO
+                    </button>
+                </div>
+            </div>
+
+
+            <div class="mt-1 flex gap-2">
+                <button onclick="saveSettings()" class="w-full py-2.5 bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs rounded-xl transition">
+                    SALVAR E APLICAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Proteção por PIN (Acesso Admin com Teclado Físico + Virtual) -->
+    <div id="pin-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 w-full max-w-xs shadow-2xl flex flex-col items-center text-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 text-lg">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-white">Painel do Administrador</h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Digite o PIN para acessar</p>
+            </div>
+            
+            <input type="password" id="admin-pin-input" maxlength="4" placeholder="••••" class="w-full text-center text-2xl tracking-[0.4em] font-mono py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-pink-500" onkeyup="if(event.key==='Enter') verifyPin()">
+            
+            <!-- Teclado Numérico Virtual para Telas Touch -->
+            <div class="grid grid-cols-3 gap-1.5 w-full mt-1">
+                <button onclick="pressPinKey('1')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">1</button>
+                <button onclick="pressPinKey('2')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">2</button>
+                <button onclick="pressPinKey('3')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">3</button>
+                <button onclick="pressPinKey('4')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">4</button>
+                <button onclick="pressPinKey('5')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">5</button>
+                <button onclick="pressPinKey('6')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">6</button>
+                <button onclick="pressPinKey('7')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">7</button>
+                <button onclick="pressPinKey('8')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">8</button>
+                <button onclick="pressPinKey('9')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">9</button>
+                <button onclick="pressPinKey('clear')" class="py-2.5 bg-slate-800/60 hover:bg-slate-800 text-slate-400 font-bold rounded-xl active:scale-95 text-xs">C</button>
+                <button onclick="pressPinKey('0')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl active:scale-95 text-sm">0</button>
+                <button onclick="pressPinKey('del')" class="py-2.5 bg-slate-800/60 hover:bg-slate-800 text-slate-400 font-bold rounded-xl active:scale-95 text-xs"><i class="fa-solid fa-backspace"></i></button>
+            </div>
+
+            <div id="pin-error-msg" class="hidden text-xs font-bold text-red-400">Senha incorreta! Tente novamente.</div>
+            <div class="flex w-full gap-2 mt-1">
+                <button onclick="closePinModal()" class="w-1/2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">CANCELAR</button>
+                <button onclick="verifyPin()" class="w-1/2 py-2 bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold rounded-xl">ENTRAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Preview de Posição dos Espaços na Moldura -->
+    <div id="preview-slots-modal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[120] flex items-center justify-center p-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 w-full max-w-sm shadow-2xl flex flex-col items-center gap-3">
+            <div class="flex justify-between items-center w-full border-b border-slate-800 pb-2">
+                <h4 class="text-sm font-bold text-white"><i class="fa-solid fa-eye text-purple-400 mr-1.5"></i> Preview das Posições</h4>
+                <button onclick="document.getElementById('preview-slots-modal').classList.add('hidden')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="relative max-h-[60dvh] overflow-hidden rounded-xl border border-slate-800">
+                <canvas id="preview-slots-canvas" class="max-h-[55dvh] w-auto object-contain block"></canvas>
+            </div>
+            <p class="text-[10px] text-slate-400 text-center">
+                🟦 Foto 1 &nbsp; 🟩 Foto 2 &nbsp; 🟧 Foto 3<br>
+                Ajuste os valores em % se necessário.
+            </p>
+        </div>
+    </div>
+
+    <!-- Área de Impressão Oculta -->
+    <div id="print-area" class="hidden"></div>
+    <!-- Iframe para Impressão Silenciosa (Android sem diálogo extra) -->
+    <iframe id="silent-print-frame" tabindex="-1" aria-hidden="true"></iframe>
+
+    <script>
+        // IndexedDB Storage para Moldura
+        const dbPromise = new Promise((resolve) => {
+            const req = indexedDB.open('cbf_db_v4', 1);
+            req.onupgradeneeded = e => e.target.result.createObjectStore('store');
+            req.onsuccess = e => resolve(e.target.result);
+            req.onerror = () => resolve(null);
+        });
+
+        async function idbGet(key) {
+            try {
+                const db = await dbPromise;
+                if (!db) return null;
+                return new Promise(res => {
+                    const tx = db.transaction('store', 'readonly');
+                    const req = tx.objectStore('store').get(key);
+                    req.onsuccess = () => res(req.result);
+                    req.onerror = () => res(null);
+                });
+            } catch { return null; }
+        }
+
+        async function idbSet(key, val) {
+            try {
+                const db = await dbPromise;
+                if (!db) return;
+                return new Promise(res => {
+                    const tx = db.transaction('store', 'readwrite');
+                    tx.objectStore('store').put(val, key);
+                    tx.oncomplete = () => res(true);
+                });
+            } catch {}
+        }
+
+        async function idbDel(key) {
+            try {
+                const db = await dbPromise;
+                if (!db) return;
+                return new Promise(res => {
+                    const tx = db.transaction('store', 'readwrite');
+                    tx.objectStore('store').delete(key);
+                    tx.oncomplete = () => res(true);
+                });
+            } catch {}
+        }
+
+        let config = {
+            title: "ANIVERSÁRIO CAIO & HELOÍSA 🎉",
+            subtitle: "08/08/2026",
+            frameColor: "#ffffff",
+            autoPrint: false, // DESABILITADO POR PADRÃO — Impressão manual via botão
+            countdownSeconds: 5,
+            timeoutSeconds: 20,
+            shutterSound: "dslr", // 'dslr', 'digital', 'silent'
+            adminPin: "1234",
+            customFrameSrc: null,
+            // Google Drive via Apps Script (URL do web app implantado)
+            appsScriptUrl: "https://script.google.com/macros/s/AKfycbw4MLL8W-04TyDCt-DfBsT08XsCbL96X0Yk65dnFQmwUJAxif-G8wWOtc8ZY2RWESNf/exec",
+            // URL da pasta do Drive (para QR Code)
+            driveFolderUrl: "https://drive.google.com/drive/folders/1ZBKRxB-tJXxDhIO5c6CTtM3olKlv2nIn"
+        };
+
+        // ─────────── UPLOAD VIA GOOGLE APPS SCRIPT PROXY ───────────
+        // Envia a foto como base64 para o Apps Script, que salva no Drive
+        async function uploadViaAppsScript(canvas, fileName) {
+            if (!config.appsScriptUrl) return null;
+            // Gera blob comprimido (800x1200 / qualidade 0.82)
+            const MAX_W = 800, MAX_H = 1200;
+            const scale = Math.min(MAX_W / canvas.width, MAX_H / canvas.height, 1);
+            const w = Math.round(canvas.width * scale);
+            const h = Math.round(canvas.height * scale);
+            const small = document.createElement('canvas');
+            small.width = w; small.height = h;
+            small.getContext('2d').drawImage(canvas, 0, 0, w, h);
+            const dataUrl = small.toDataURL('image/jpeg', 0.82);
+
+            // Usa mode:'no-cors' para contornar bloqueio CORS do navegador.
+            // O Apps Script RECEBE e SALVA o arquivo normalmente no Drive,
+            // mas o browser não consegue ler a resposta (limitação de segurança).
+            await fetch(config.appsScriptUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ image: dataUrl, fileName }),
+                headers: { 'Content-Type': 'text/plain' }
+            });
+
+            // Retorna a URL da pasta (não conseguimos ler a URL do arquivo por causa do CORS)
+            return config.driveFolderUrl || null;
+        }
+        // ────────────────────────────────────────────────────────────
+
+        // ─────────── IMPRESSÃO SILENCIOSA (SEM DIÁLOGO ANDROID) ────
+        // Cria um iframe oculto com HTML de impressão 10x15cm e chama print() nele
+        let _lastPrintDataUrl = null;
+
+        function printSilent(dataUrl) {
+            _lastPrintDataUrl = dataUrl;
+            const frame = document.getElementById('silent-print-frame');
+
+            // HTML da página de impressão: apenas a imagem 10x15cm
+            const printHtml = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<style>
+  @page { size: 100mm 150mm portrait; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100mm; height: 150mm; background: white; overflow: hidden; }
+  img { display: block; width: 100mm; height: 150mm; object-fit: fill; }
+</style>
+</head><body><img src="${dataUrl}"></body></html>`;
+
+            frame.onload = () => {
+                try {
+                    frame.contentWindow.focus();
+                    frame.contentWindow.print();
+                } catch(e) {
+                    // Fallback: impressão normal
+                    window.print();
+                }
+            };
+            frame.srcdoc = printHtml;
+        }
+        // ────────────────────────────────────────────────────────────
+
+        function requestPinAccess() {
+            document.getElementById('admin-pin-input').value = '';
+            document.getElementById('pin-error-msg').classList.add('hidden');
+            document.getElementById('pin-modal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('admin-pin-input').focus(), 100);
+        }
+
+        function closePinModal() {
+            document.getElementById('pin-modal').classList.add('hidden');
+        }
+
+        function verifyPin() {
+            const inputPin = document.getElementById('admin-pin-input').value;
+            if (inputPin === config.adminPin) {
+                closePinModal();
+                openSettings();
+            } else {
+                document.getElementById('pin-error-msg').classList.remove('hidden');
+                document.getElementById('admin-pin-input').value = '';
+            }
+        }
+
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtxClass) {
+                    audioCtx = new AudioCtxClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playBeep(freq = 440, duration = 0.12) {
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        // SOM DE DISPARO REALISTA (DSLR Mechanic)
+        function playShutterSound() {
+            if (config.shutterSound === 'silent') return;
+
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+
+                const now = ctx.currentTime;
+
+                if (config.shutterSound === 'digital') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(now + 0.08);
+                    return;
+                }
+
+                // Câmera Reflex / DSLR
+                const bufferSize = Math.floor(ctx.sampleRate * 0.12);
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const click1 = ctx.createBufferSource();
+                click1.buffer = buffer;
+                const filter1 = ctx.createBiquadFilter();
+                filter1.type = 'bandpass';
+                filter1.frequency.setValueAtTime(1500, now);
+                filter1.Q.setValueAtTime(2.2, now);
+
+                const gain1 = ctx.createGain();
+                gain1.gain.setValueAtTime(0.95, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+                click1.connect(filter1);
+                filter1.connect(gain1);
+                gain1.connect(ctx.destination);
+
+                const bodyOsc = ctx.createOscillator();
+                const bodyGain = ctx.createGain();
+                bodyOsc.type = 'triangle';
+                bodyOsc.frequency.setValueAtTime(320, now);
+                bodyOsc.frequency.exponentialRampToValueAtTime(50, now + 0.07);
+                bodyGain.gain.setValueAtTime(0.6, now);
+                bodyGain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+
+                bodyOsc.connect(bodyGain);
+                bodyGain.connect(ctx.destination);
+
+                const click2 = ctx.createBufferSource();
+                click2.buffer = buffer;
+                const filter2 = ctx.createBiquadFilter();
+                filter2.type = 'highpass';
+                filter2.frequency.setValueAtTime(950, now + 0.04);
+
+                const gain2 = ctx.createGain();
+                gain2.gain.setValueAtTime(0, now);
+                gain2.gain.setValueAtTime(0.75, now + 0.04);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+
+                click2.connect(filter2);
+                filter2.connect(gain2);
+                gain2.connect(ctx.destination);
+
+                click1.start(now);
+                click1.stop(now + 0.04);
+                bodyOsc.start(now);
+                bodyOsc.stop(now + 0.07);
+                click2.start(now + 0.04);
+                click2.stop(now + 0.11);
+
+            } catch (e) {}
+        }
+
+        function testShutterSound() {
+            getAudioContext();
+            const originalSound = config.shutterSound;
+            const selectEl = document.getElementById('cfg-sound');
+            if (selectEl) config.shutterSound = selectEl.value;
+            playShutterSound();
+            config.shutterSound = originalSound;
+        }
+
+        let webcamStream = null;
+        const webcam = document.getElementById('webcam');
+        const captureCanvas = document.getElementById('capture-canvas');
+        let capturedPhotos = [];
+        let autoResetTimer = null;
+        let countdownInterval = null;
+
+        async function initCamera() {
+            const errorBanner = document.getElementById('camera-error-banner');
+            const errorMsg = document.getElementById('camera-error-msg');
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                if (errorBanner && errorMsg) {
+                    errorMsg.innerText = "Câmera indisponível. Certifique-se de acessar via HTTPS ou servidor local.";
+                    errorBanner.classList.remove('hidden');
+                }
+                return;
+            }
+
+            webcam.muted = true;
+
+            // Solicita qualidade máxima (4K / Full HD 1080p Ultra)
+            const constraintOptions = [
+                { 
+                    video: { 
+                        facingMode: "user",
+                        width: { ideal: 3840, min: 1920 },
+                        height: { ideal: 2160, min: 1080 },
+                        frameRate: { ideal: 30 }
+                    }, 
+                    audio: false 
+                },
+                { 
+                    video: { 
+                        facingMode: "user",
+                        width: { ideal: 1920, min: 1280 },
+                        height: { ideal: 1080, min: 720 }
+                    }, 
+                    audio: false 
+                },
+                { video: { facingMode: "user" }, audio: false },
+                { video: true, audio: false }
+            ];
+
+            for (const constraints of constraintOptions) {
+                try {
+                    webcamStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    webcam.srcObject = webcamStream;
+                    await webcam.play().catch(() => {});
+
+                    // Força a câmera a aplicar resolução máxima do sensor do celular
+                    const track = webcamStream.getVideoTracks()[0];
+                    if (track && track.applyConstraints) {
+                        try {
+                            await track.applyConstraints({
+                                width: { ideal: 3840, min: 1920 },
+                                height: { ideal: 2160, min: 1080 }
+                            });
+                        } catch (err) {}
+                    }
+
+                    if (errorBanner) errorBanner.classList.add('hidden');
+                    return;
+                } catch (e) {}
+            }
+
+            if (errorBanner && errorMsg) {
+                errorMsg.innerText = "Câmera não encontrada ou permissão negada. Por favor, permita o acesso à câmera.";
+                errorBanner.classList.remove('hidden');
+            }
+        }
+
+        function runCountdown(seconds) {
+            return new Promise((resolve) => {
+                let current = seconds;
+                const numEl = document.getElementById('countdown-number');
+                numEl.innerText = current;
+
+                playBeep(520, 0.15);
+
+                countdownInterval = setInterval(() => {
+                    current--;
+                    if (current > 0) {
+                        numEl.innerText = current;
+                        playBeep(current === 1 ? 880 : 520, 0.15);
+                    } else {
+                        clearInterval(countdownInterval);
+                        resolve();
+                    }
+                }, 1000);
+            });
+        }
+
+        function triggerFlashAndSound() {
+            playShutterSound();
+            const flash = document.getElementById('flash-overlay');
+            flash.classList.add('active');
+            setTimeout(() => {
+                flash.classList.remove('active');
+            }, 120);
+        }
+
+        function captureSinglePhoto() {
+            const ctx = captureCanvas.getContext('2d');
+            const vw = webcam.videoWidth || 1920;
+            const vh = webcam.videoHeight || 1080;
+            captureCanvas.width = vw;
+            captureCanvas.height = vh;
+
+            ctx.save();
+            ctx.translate(vw, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(webcam, 0, 0, vw, vh);
+            ctx.restore();
+
+            const dataUrl = captureCanvas.toDataURL('image/jpeg', 1.0);
+            capturedPhotos.push(dataUrl);
+        }
+
+        async function startSession() {
+            stopAutoResetTimer();
+            getAudioContext();
+            capturedPhotos = [];
+
+            for (let d = 0; d < 3; d++) {
+                const dot = document.getElementById(`dot-${d}`);
+                if (dot) dot.className = "w-3.5 h-3.5 rounded-full bg-white/30 border-2 border-white/60 transition-all duration-300";
+            }
+
+            showScreen('screen-capture');
+
+            for (let photoIndex = 1; photoIndex <= 3; photoIndex++) {
+                document.getElementById('current-photo-num').innerText = photoIndex;
+
+                const curDot = document.getElementById(`dot-${photoIndex-1}`);
+                if (curDot) curDot.className = "w-4 h-4 rounded-full bg-pink-500 border-2 border-white scale-125 shadow-lg shadow-pink-500/50 transition-all duration-300";
+
+                await runCountdown(config.countdownSeconds);
+                
+                triggerFlashAndSound();
+                captureSinglePhoto();
+
+                if (curDot) curDot.className = "w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-emerald-300 transition-all duration-300";
+                
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            showScreen('screen-processing');
+            
+            setTimeout(() => {
+                generate10x15PhotoSheet();
+            }, 500);
+        }
+
+        function generate10x15PhotoSheet() {
+            const sheetCanvas = document.createElement('canvas');
+            sheetCanvas.width = 1200;  // 10cm em 300DPI
+            sheetCanvas.height = 1800; // 15cm em 300DPI
+            const ctx = sheetCanvas.getContext('2d');
+
+            let loadedImagesCount = 0;
+            const loadedImages = [];
+
+            capturedPhotos.forEach((src, i) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => {
+                    loadedImages[i] = img;
+                    loadedImagesCount++;
+                    
+                    if (loadedImagesCount === 3) {
+                        if (config.customFrameSrc) {
+                            drawCustomFrameSheet(sheetCanvas, ctx, loadedImages);
+                        } else {
+                            drawSoccerThemeLayout(sheetCanvas, ctx, loadedImages);
+                        }
+                    }
+                };
+            });
+        }
+
+        function drawRoundedRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function drawSoccerBall(ctx, cx, cy, radius, primaryColor = "#0284c7") {
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = primaryColor;
+            ctx.stroke();
+
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 72 - 90) * Math.PI / 180;
+                const px = Math.cos(angle) * (radius * 0.38);
+                const py = Math.sin(angle) * (radius * 0.38);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = primaryColor;
+            ctx.fill();
+
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 72 - 90) * Math.PI / 180;
+                const px1 = Math.cos(angle) * (radius * 0.38);
+                const py1 = Math.sin(angle) * (radius * 0.38);
+                const px2 = Math.cos(angle) * radius;
+                const py2 = Math.sin(angle) * radius;
+                ctx.beginPath();
+                ctx.moveTo(px1, py1);
+                ctx.lineTo(px2, py2);
+                ctx.strokeStyle = primaryColor;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function getSlotPxList() {
+            const read = (id, def) => (parseFloat(document.getElementById(id)?.value) || def) / 100;
+            return [
+                { x: Math.round(read('s0x', 7) * 1200),  y: Math.round(read('s0y', 28) * 1800),  w: Math.round(read('s0w', 39.5) * 1200), h: Math.round(read('s0h', 27) * 1800) },
+                { x: Math.round(read('s1x', 53) * 1200), y: Math.round(read('s1y', 28) * 1800),  w: Math.round(read('s1w', 39.5) * 1200), h: Math.round(read('s1h', 27) * 1800) },
+                { x: Math.round(read('s2x', 30) * 1200), y: Math.round(read('s2y', 59) * 1800),  w: Math.round(read('s2w', 39.5) * 1200), h: Math.round(read('s2h', 25) * 1800) },
+            ];
+        }
+
+        // MOLDURA CUSTOMIZADA (PNG/JPG com corte automático dos espaços)
+        function drawCustomFrameSheet(canvas, ctx, images) {
+            const slots = getSlotPxList();
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, 1200, 1800);
+
+            // Desenha as 3 fotos
+            images.forEach((img, idx) => {
+                const s = slots[idx];
+                ctx.save();
+                drawRoundedRect(ctx, s.x, s.y, s.w, s.h, 16);
+                ctx.clip();
+
+                const imgAspect = img.width / img.height;
+                const targetAspect = s.w / s.h;
+                let sx, sy, sw, sh;
+                if (imgAspect > targetAspect) {
+                    sh = img.height; sw = img.height * targetAspect;
+                    sx = (img.width - sw) / 2; sy = 0;
+                } else {
+                    sw = img.width; sh = img.width / targetAspect;
+                    sx = 0; sy = (img.height - sh) / 2;
+                }
+                ctx.drawImage(img, sx, sy, sw, sh, s.x, s.y, s.w, s.h);
+                ctx.restore();
+            });
+
+            // Desenha a Moldura por CIMA com furos recortados
+            const frameImg = new Image();
+            frameImg.onload = () => {
+                const tempC = document.createElement('canvas');
+                tempC.width = 1200; tempC.height = 1800;
+                const tempCtx = tempC.getContext('2d');
+                tempCtx.drawImage(frameImg, 0, 0, 1200, 1800);
+
+                slots.forEach(s => {
+                    tempCtx.clearRect(s.x, s.y, s.w, s.h);
+                });
+
+                ctx.drawImage(tempC, 0, 0, 1200, 1800);
+                finishSheetExport(canvas);
+            };
+            frameImg.onerror = () => finishSheetExport(canvas);
+            frameImg.src = config.customFrameSrc;
+        }
+
+        function drawSoccerThemeLayout(canvas, ctx, images) {
+            const blueColor = "#0284c7";  // Azul Caio
+            const pinkColor = "#ec4899";  // Rosa Heloísa
+            const darkNavy = "#0f172a";
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, 1200, 1800);
+
+            const dots = [
+                {x: 80, y: 70, r: 8, c: blueColor}, {x: 140, y: 110, r: 12, c: pinkColor},
+                {x: 1060, y: 80, r: 10, c: pinkColor}, {x: 1120, y: 130, r: 7, c: blueColor},
+                {x: 70, y: 380, r: 9, c: pinkColor}, {x: 1130, y: 420, r: 11, c: blueColor},
+                {x: 60, y: 760, r: 10, c: blueColor}, {x: 1140, y: 780, r: 8, c: pinkColor},
+                {x: 75, y: 1150, r: 12, c: pinkColor}, {x: 1125, y: 1120, r: 9, c: blueColor}
+            ];
+            dots.forEach(d => {
+                ctx.beginPath();
+                ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+                ctx.fillStyle = d.c;
+                ctx.fill();
+            });
+
+            // Banner "ANIVERSÁRIO"
+            const bannerX = 400, bannerY = 50, bannerW = 400, bannerH = 50;
+            ctx.fillStyle = "#1e293b";
+            drawRoundedRect(ctx, bannerX, bannerY, bannerW, bannerH, 16);
+            ctx.fill();
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "900 26px 'Montserrat', sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("ANIVERSÁRIO", 600, bannerY + 35);
+
+            // Nomes
+            ctx.font = "900 68px 'Montserrat', sans-serif";
+            ctx.textAlign = "right";
+            ctx.fillStyle = blueColor;
+            ctx.fillText("CAIO ", 560, 175);
+
+            ctx.textAlign = "center";
+            ctx.fillStyle = darkNavy;
+            ctx.font = "900 55px 'Montserrat', sans-serif";
+            ctx.fillText("&", 600, 170);
+
+            ctx.textAlign = "left";
+            ctx.fillStyle = pinkColor;
+            ctx.font = "900 68px 'Montserrat', sans-serif";
+            ctx.fillText(" HELOÍSA", 640, 175);
+
+            // Badges
+            ctx.fillStyle = blueColor;
+            drawRoundedRect(ctx, 320, 205, 230, 48, 24);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "900 22px 'Montserrat', sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("⚽ 9 ANOS", 435, 237);
+
+            ctx.fillStyle = pinkColor;
+            drawRoundedRect(ctx, 650, 205, 230, 48, 24);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "900 22px 'Montserrat', sans-serif";
+            ctx.fillText("⚽ 12 ANOS", 765, 237);
+
+            // 3 Quadros
+            const frameW = 860, frameH = 370, frameX = 170, startY = 280, gapY = 28;
+            const frameColors = [blueColor, pinkColor, blueColor];
+
+            images.forEach((img, idx) => {
+                const currentY = startY + (idx * (frameH + gapY));
+                const borderColor = frameColors[idx];
+
+                ctx.save();
+                drawRoundedRect(ctx, frameX, currentY, frameW, frameH, 28);
+                ctx.clip();
+
+                const imgAspect = img.width / img.height;
+                const targetAspect = frameW / frameH;
+                let sx, sy, sw, sh;
+                if (imgAspect > targetAspect) {
+                    sh = img.height; sw = img.height * targetAspect;
+                    sx = (img.width - sw) / 2; sy = 0;
+                } else {
+                    sw = img.width; sh = img.width / targetAspect;
+                    sx = 0; sy = (img.height - sh) / 2;
+                }
+                ctx.drawImage(img, sx, sy, sw, sh, frameX, currentY, frameW, frameH);
+                ctx.restore();
+
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = 12;
+                drawRoundedRect(ctx, frameX, currentY, frameW, frameH, 28);
+                ctx.stroke();
+            });
+
+            // Bolas de Futebol
+            drawSoccerBall(ctx, 80, 460, 32, blueColor);
+            drawSoccerBall(ctx, 1120, 460, 32, pinkColor);
+            drawSoccerBall(ctx, 80, 850, 32, pinkColor);
+            drawSoccerBall(ctx, 1120, 850, 32, blueColor);
+            drawSoccerBall(ctx, 80, 1240, 32, blueColor);
+            drawSoccerBall(ctx, 1120, 1240, 32, pinkColor);
+
+            // Rodapé
+            const footerY = 1520;
+            ctx.beginPath();
+            ctx.moveTo(150, footerY); ctx.lineTo(1050, footerY);
+            ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 3;
+            ctx.setLineDash([12, 12]); ctx.stroke(); ctx.setLineDash([]);
+
+            ctx.fillStyle = darkNavy;
+            ctx.font = "bold 32px 'Montserrat', sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(config.subtitle || "08/08/2026", 600, footerY + 55);
+
+            ctx.fillStyle = "#64748b";
+            ctx.font = "600 24px 'Montserrat', sans-serif";
+            ctx.fillText("Obrigado pela presença! ✨", 600, footerY + 95);
+
+            finishSheetExport(canvas);
+        }
+
+        function finishSheetExport(canvas) {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+            document.getElementById('final-sheet-img').src = dataUrl;
+            
+            const printArea = document.getElementById('print-area');
+            printArea.innerHTML = `<img src="${dataUrl}" alt="Foto 10x15cm">`;
+
+            // Salvar dataUrl para reimpressão
+            _lastPrintDataUrl = dataUrl;
+
+            // Upload & Gerar QR Code (Google Drive ou fallback)
+            generateQRCodeCloud(canvas, dataUrl);
+
+            showScreen('screen-result');
+
+            // Impressão Automática (Somente se configurada pelo Admin)
+            if (config.autoPrint) {
+                setTimeout(() => {
+                    printPhoto();
+                }, 800);
+            }
+
+            startAutoResetTimer();
+        }
+
+        // GERADOR DE QR CODE COM GOOGLE DRIVE (SERVICE ACCOUNT) + FALLBACKS
+        // Helper: gera um blob reduzido para upload rápido (máx 800x1200)
+        async function makeUploadBlob(srcCanvas) {
+            const MAX_W = 800, MAX_H = 1200;
+            const scaleW = MAX_W / srcCanvas.width;
+            const scaleH = MAX_H / srcCanvas.height;
+            const scale = Math.min(scaleW, scaleH, 1);
+            const w = Math.round(srcCanvas.width * scale);
+            const h = Math.round(srcCanvas.height * scale);
+            const small = document.createElement('canvas');
+            small.width = w; small.height = h;
+            small.getContext('2d').drawImage(srcCanvas, 0, 0, w, h);
+            return new Promise(r => small.toBlob(r, 'image/jpeg', 0.80));
+        }
+
+        // Renderiza o QR Code no container
+        function renderQR(container, url, size = 100) {
+            container.innerHTML = '';
+            const qrCanvas = document.createElement('canvas');
+            container.appendChild(qrCanvas);
+            if (typeof QRCode !== 'undefined' && QRCode.toCanvas) {
+                QRCode.toCanvas(qrCanvas, url, { width: size, margin: 1, color: { dark: '#000000', light: '#ffffff' } });
+            } else if (typeof QRious !== 'undefined') {
+                new QRious({ element: qrCanvas, value: url, size, level: 'M' });
+            }
+        }
+
+        async function generateQRCodeCloud(canvas, fallbackDataUrl) {
+            const container = document.getElementById('qrcode');
+            const qrSubtext = document.getElementById('qr-subtext');
+
+            // ── FASE 1: QR aparece IMEDIATAMENTE apontando para a página ──
+            if (qrSubtext) qrSubtext.innerText = '⏳ Enviando foto...';
+            renderQR(container, window.location.href, 100);
+
+            // ── FASE 2: Upload em paralelo (Apps Script + Pixeldrain) ──
+            const fileName = `foto_${Date.now()}.jpg`;
+            let downloadUrl = null;
+
+            try {
+                // Apps Script (Google Drive) — usa o canvas diretamente
+                const asPromise = config.appsScriptUrl
+                    ? uploadViaAppsScript(canvas, fileName).catch(() => null)
+                    : Promise.resolve(null);
+
+                // Pixeldrain — blob comprimido em paralelo
+                const blob = await makeUploadBlob(canvas);
+                const pdPromise = fetch(`https://pixeldrain.com/api/file/${fileName}`, { method: 'PUT', body: blob })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(j => j && j.id ? `https://pixeldrain.com/api/file/${j.id}?download` : null)
+                    .catch(() => null);
+
+                // Usa o primeiro resultado não-nulo (máx 20s)
+                const timeout = new Promise(r => setTimeout(() => r(null), 20000));
+                downloadUrl = await Promise.race([
+                    asPromise.then(u => u || new Promise(() => {})),
+                    pdPromise.then(u => u || new Promise(() => {})),
+                    timeout
+                ]).catch(() => null);
+
+                // Se a corrida expirou, pega qualquer resultado que chegou
+                if (!downloadUrl) {
+                    const results = await Promise.allSettled([asPromise, pdPromise]);
+                    downloadUrl = results[0].value || results[1].value || null;
+                }
+            } catch (e) {}
+
+            // ── FASE 3: Atualiza QR com link de download (ou mantém page URL) ──
+            if (downloadUrl) {
+                renderQR(container, downloadUrl, 100);
+                if (qrSubtext) qrSubtext.innerText = '📥 Aponte a câmera — baixa direto!';
+            } else {
+                if (qrSubtext) qrSubtext.innerText = '📷 Aponte a câmera do seu celular.';
+            }
+        }
+
+
+        function showScreen(screenId) {
+            const screens = ['screen-start', 'screen-capture', 'screen-processing', 'screen-result'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (id === screenId) {
+                        el.classList.remove('hidden');
+                    } else {
+                        el.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        function startAutoResetTimer() {
+            stopAutoResetTimer();
+            const bar = document.getElementById('reset-progress-bar');
+            const display = document.getElementById('timeout-seconds-display');
+            const durationSec = config.timeoutSeconds || 20;
+
+            if (display) display.innerText = durationSec;
+
+            if (bar) {
+                bar.style.animationDuration = `${durationSec}s`;
+                bar.classList.remove('progress-shrink');
+                void bar.offsetWidth;
+                bar.classList.add('progress-shrink');
+            }
+
+            autoResetTimer = setTimeout(() => {
+                resetToStart();
+            }, durationSec * 1000);
+        }
+
+        function stopAutoResetTimer() {
+            if (autoResetTimer) {
+                clearTimeout(autoResetTimer);
+                autoResetTimer = null;
+            }
+            const bar = document.getElementById('reset-progress-bar');
+            if (bar) {
+                bar.classList.remove('progress-shrink');
+            }
+        }
+
+        function resetToStart() {
+            stopAutoResetTimer();
+            if (webcamStream) {
+                // Keep camera warm
+            }
+            showScreen('screen-start');
+        }
+
+        function openSettings() {
+            document.getElementById('cfg-title').value = config.title;
+            document.getElementById('cfg-subtitle').value = config.subtitle;
+            document.getElementById('cfg-countdown').value = config.countdownSeconds;
+            document.getElementById('cfg-timeout').value = config.timeoutSeconds || 20;
+            document.getElementById('cfg-sound').value = config.shutterSound;
+            document.getElementById('cfg-pin').value = config.adminPin;
+            document.getElementById('cfg-autoprint').checked = config.autoPrint;
+            const asEl = document.getElementById('cfg-apps-script-url');
+            if (asEl) asEl.value = config.appsScriptUrl || '';
+            // Atualiza badge do Drive
+            const badge = document.getElementById('gdrive-status-badge');
+            if (badge) {
+                if (config.appsScriptUrl) {
+                    badge.textContent = '✓ Configurado';
+                    badge.className = 'ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                } else {
+                    badge.textContent = 'Não configurado';
+                    badge.className = 'ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 border border-slate-600';
+                }
+            }
+            
+            const btnRm = document.getElementById('btn-remove-frame');
+            const frameLbl = document.getElementById('frame-status-lbl');
+            if (config.customFrameSrc) {
+                btnRm.classList.remove('hidden');
+                frameLbl.innerText = "Moldura Customizada Ativa ✅";
+            } else {
+                btnRm.classList.add('hidden');
+                frameLbl.innerText = "Usando Moldura Padrão (Futebol Caio & Heloísa).";
+            }
+
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            config.title = document.getElementById('cfg-title').value || "ANIVERSÁRIO CAIO & HELOÍSA 🎉";
+            config.subtitle = document.getElementById('cfg-subtitle').value || "08/08/2026";
+            config.countdownSeconds = parseInt(document.getElementById('cfg-countdown').value) || 5;
+            config.timeoutSeconds = parseInt(document.getElementById('cfg-timeout').value) || 20;
+            config.shutterSound = document.getElementById('cfg-sound').value || "dslr";
+            config.adminPin = document.getElementById('cfg-pin').value || "1234";
+            config.autoPrint = document.getElementById('cfg-autoprint').checked;
+            const asEl = document.getElementById('cfg-apps-script-url');
+            if (asEl) config.appsScriptUrl = asEl.value.trim();
+
+            document.getElementById('header-event-title').innerText = config.title;
+            document.getElementById('header-event-subtitle').innerText = `Cabine de Fotos • ${config.subtitle}`;
+
+            closeSettings();
+        }
+
+        async function testGDriveConnection() {
+            const resultEl = document.getElementById('gdrive-test-result');
+            if (!resultEl) return;
+            // Salva URL atual antes de testar
+            const asEl = document.getElementById('cfg-apps-script-url');
+            if (asEl) config.appsScriptUrl = asEl.value.trim();
+
+            if (!config.appsScriptUrl) {
+                resultEl.textContent = '⚠️ Cole a URL do Apps Script primeiro!';
+                resultEl.className = 'mt-1 text-[10px] font-bold text-center py-1 rounded-lg bg-yellow-900/40 text-yellow-400 border border-yellow-700/50';
+                resultEl.classList.remove('hidden');
+                return;
+            }
+
+            resultEl.textContent = '⏳ Verificando script...';
+            resultEl.className = 'mt-1 text-[10px] font-bold text-center py-1 rounded-lg bg-slate-800 text-slate-300';
+            resultEl.classList.remove('hidden');
+            try {
+                // Teste via GET (sem CORS) para verificar se o script está ativo
+                const pingRes = await fetch(config.appsScriptUrl, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                if (!pingRes.ok) throw new Error(`Script offline (HTTP ${pingRes.status})`);
+                const pingText = await pingRes.text();
+                let pingJson;
+                try { pingJson = JSON.parse(pingText); } catch { throw new Error('Script retornou HTML — verifique se está publicado como "Qualquer pessoa"'); }
+                if (!pingJson.status) throw new Error('Resposta inesperada do script');
+
+                // Upload de teste (no-cors — o arquivo é salvo mesmo sem ler resposta)
+                resultEl.textContent = '⏳ Enviando foto de teste...';
+                const testCanvas = document.createElement('canvas');
+                testCanvas.width = 10; testCanvas.height = 10;
+                testCanvas.getContext('2d').fillStyle = '#ff69b4';
+                testCanvas.getContext('2d').fillRect(0, 0, 10, 10);
+                await uploadViaAppsScript(testCanvas, `teste_conexao_${Date.now()}.jpg`);
+
+                resultEl.textContent = '✅ Configurado! Fotos serão salvas no Drive.';
+                resultEl.className = 'mt-1 text-[10px] font-bold text-center py-1 rounded-lg bg-emerald-900/40 text-emerald-400 border border-emerald-700/50';
+            } catch (e) {
+                resultEl.textContent = `❌ Falha: ${e.message}`;
+                resultEl.className = 'mt-1 text-[10px] font-bold text-center py-1 rounded-lg bg-red-900/40 text-red-400 border border-red-700/50';
+            }
+        }
+
+        function handleFrameUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                config.customFrameSrc = ev.target.result;
+                idbSet('custom_frame_img', ev.target.result);
+                document.getElementById('btn-remove-frame').classList.remove('hidden');
+                document.getElementById('frame-status-lbl').innerText = "Moldura Customizada Carregada ✅";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeCustomFrame() {
+            config.customFrameSrc = null;
+            idbDel('custom_frame_img');
+            document.getElementById('btn-remove-frame').classList.add('hidden');
+            document.getElementById('frame-status-lbl').innerText = "Usando Moldura Padrão (Futebol Caio & Heloísa).";
+        }
+
+        function printPhoto() {
+            stopAutoResetTimer();
+            if (_lastPrintDataUrl) {
+                // Impressão silenciosa via iframe (sem diálogo extra Android)
+                printSilent(_lastPrintDataUrl);
+            } else {
+                // Fallback: impressão normal
+                window.print();
+            }
+            // Reinicia timer 3s após trigger de impressão
+            setTimeout(() => startAutoResetTimer(), 3000);
+        }
+
+        function pressPinKey(val) {
+            const input = document.getElementById('admin-pin-input');
+            if (!input) return;
+            if (val === 'clear') {
+                input.value = '';
+            } else if (val === 'del') {
+                input.value = input.value.slice(0, -1);
+            } else {
+                if (input.value.length < 4) {
+                    input.value += val;
+                }
+            }
+            if (input.value.length === 4) {
+                setTimeout(verifyPin, 150);
+            }
+        }
+
+        function previewSlotPositions() {
+            const slots = getSlotPxList();
+            const modal = document.getElementById('preview-slots-modal');
+            const canvas = document.getElementById('preview-slots-canvas');
+            if (!modal || !canvas) return;
+
+            canvas.width = 1200; canvas.height = 1800;
+            const ctx = canvas.getContext('2d');
+
+            const drawOverlay = () => {
+                const colors = ['rgba(2, 132, 199, 0.55)', 'rgba(236, 72, 153, 0.55)', 'rgba(245, 158, 11, 0.55)'];
+                const strokeColors = ['#0284c7', '#ec4899', '#f59e0b'];
+                const labels = ['Foto 1', 'Foto 2', 'Foto 3'];
+
+                slots.forEach((s, i) => {
+                    ctx.fillStyle = colors[i];
+                    drawRoundedRect(ctx, s.x, s.y, s.w, s.h, 16);
+                    ctx.fill();
+
+                    ctx.strokeStyle = strokeColors[i];
+                    ctx.lineWidth = 6;
+                    drawRoundedRect(ctx, s.x, s.y, s.w, s.h, 16);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '900 42px Montserrat, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(labels[i], s.x + s.w / 2, s.y + s.h / 2 + 14);
+                });
+            };
+
+            if (config.customFrameSrc) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, 1200, 1800);
+                    drawOverlay();
+                    modal.classList.remove('hidden');
+                };
+                img.src = config.customFrameSrc;
+            } else {
+                drawSoccerThemeLayout(canvas, ctx, [new Image(), new Image(), new Image()]);
+                drawOverlay();
+                modal.classList.remove('hidden');
+            }
+        }
+
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', async () => {
+            initCamera();
+            const savedFrame = await idbGet('custom_frame_img');
+            if (savedFrame) {
+                config.customFrameSrc = savedFrame;
+            }
+        });
+    </script>
+</body>
+</html>
