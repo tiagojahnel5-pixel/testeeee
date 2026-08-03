@@ -560,6 +560,8 @@
 
         // ─────────── UPLOAD VIA GOOGLE APPS SCRIPT PROXY (FORM SILENCIOSO) ───
         // Usa Form Submit em iframe oculto para garantir 100% de entrega no Drive sem bloqueio CORS
+        // ─────────── UPLOAD VIA GOOGLE APPS SCRIPT PROXY (FOTO INDIVIDUAL) ───
+        // Usa Form Submit + postMessage para receber a URL INDIVIDUAL da foto no Drive (sem expor a pasta inteira)
         async function uploadViaAppsScript(canvas, fileName) {
             if (!config.appsScriptUrl) return null;
             
@@ -583,6 +585,21 @@
                     document.body.appendChild(iframe);
                 }
 
+                let isResolved = false;
+
+                // Listener para capturar o postMessage com a URL direta da foto individual
+                function onMessage(event) {
+                    try {
+                        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                        if (data && data.viewUrl) {
+                            isResolved = true;
+                            window.removeEventListener('message', onMessage);
+                            resolve(data.viewUrl);
+                        }
+                    } catch(e) {}
+                }
+                window.addEventListener('message', onMessage);
+
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = config.appsScriptUrl;
@@ -604,13 +621,17 @@
                 document.body.appendChild(form);
                 form.submit();
 
-                // Limpa o formulário após 1.5s e retorna a URL da pasta do Drive
+                // Fallback: se em 3s não recebeu postMessage, usa a URL da pasta do Drive
                 setTimeout(() => {
                     form.remove();
-                    resolve(config.driveFolderUrl || null);
-                }, 1500);
+                    window.removeEventListener('message', onMessage);
+                    if (!isResolved) {
+                        resolve(config.driveFolderUrl || null);
+                    }
+                }, 3000);
             });
         }
+        // ────────────────────────────────────────────────────────────
         // ────────────────────────────────────────────────────────────
         // ────────────────────────────────────────────────────────────
 
@@ -1275,8 +1296,11 @@
 
             try {
                 if (config.appsScriptUrl) {
-                    await uploadViaAppsScript(canvas, fileName);
-                    if (qrSubtext) qrSubtext.innerText = '📥 Aponte a câmera — foto no Drive!';
+                    const photoUrl = await uploadViaAppsScript(canvas, fileName);
+                    if (photoUrl) {
+                        renderQR(container, photoUrl, 100);
+                        if (qrSubtext) qrSubtext.innerText = '📥 Aponte a câmera — sua foto no Drive!';
+                    }
                 } else {
                     if (qrSubtext) qrSubtext.innerText = '📷 Aponte a câmera do celular.';
                 }
