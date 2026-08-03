@@ -7,6 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#090d16">
+    <link rel="manifest" href="manifest.json">
     <title>Cabine de Fotos Profissional</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -457,7 +458,7 @@
                 <p class="text-[11px] text-slate-400 mt-0.5">Digite o PIN para acessar</p>
             </div>
             
-            <input type="password" id="admin-pin-input" maxlength="4" placeholder="••••" class="w-full text-center text-2xl tracking-[0.4em] font-mono py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-pink-500" onkeyup="if(event.key==='Enter') verifyPin()">
+            <input type="password" id="admin-pin-input" readonly maxlength="4" placeholder="••••" class="w-full text-center text-2xl tracking-[0.4em] font-mono py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-pink-500" onkeyup="if(event.key==='Enter') verifyPin()">
             
             <!-- Teclado Numérico Virtual para Telas Touch -->
             <div class="grid grid-cols-3 gap-1.5 w-full mt-1">
