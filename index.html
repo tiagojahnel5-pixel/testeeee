@@ -1265,48 +1265,23 @@
             const container = document.getElementById('qrcode');
             const qrSubtext = document.getElementById('qr-subtext');
 
-            // ── FASE 1: QR aparece IMEDIATAMENTE apontando para a página ──
-            if (qrSubtext) qrSubtext.innerText = '⏳ Enviando foto...';
-            renderQR(container, window.location.href, 100);
+            // ── FASE 1: QR aparece IMEDIATAMENTE indicando o envio ──
+            if (qrSubtext) qrSubtext.innerText = '⏳ Enviando foto ao Drive...';
+            const folderUrl = config.driveFolderUrl || window.location.href;
+            renderQR(container, folderUrl, 100);
 
-            // ── FASE 2: Upload em paralelo (Apps Script + Pixeldrain) ──
+            // ── FASE 2: Upload para o Google Drive ──
             const fileName = `foto_${Date.now()}.jpg`;
-            let downloadUrl = null;
 
             try {
-                // Apps Script (Google Drive) — usa o canvas diretamente
-                const asPromise = config.appsScriptUrl
-                    ? uploadViaAppsScript(canvas, fileName).catch(() => null)
-                    : Promise.resolve(null);
-
-                // Pixeldrain — blob comprimido em paralelo
-                const blob = await makeUploadBlob(canvas);
-                const pdPromise = fetch(`https://pixeldrain.com/api/file/${fileName}`, { method: 'PUT', body: blob })
-                    .then(r => r.ok ? r.json() : null)
-                    .then(j => j && j.id ? `https://pixeldrain.com/api/file/${j.id}?download` : null)
-                    .catch(() => null);
-
-                // Usa o primeiro resultado não-nulo (máx 20s)
-                const timeout = new Promise(r => setTimeout(() => r(null), 20000));
-                downloadUrl = await Promise.race([
-                    asPromise.then(u => u || new Promise(() => {})),
-                    pdPromise.then(u => u || new Promise(() => {})),
-                    timeout
-                ]).catch(() => null);
-
-                // Se a corrida expirou, pega qualquer resultado que chegou
-                if (!downloadUrl) {
-                    const results = await Promise.allSettled([asPromise, pdPromise]);
-                    downloadUrl = results[0].value || results[1].value || null;
+                if (config.appsScriptUrl) {
+                    await uploadViaAppsScript(canvas, fileName);
+                    if (qrSubtext) qrSubtext.innerText = '📥 Aponte a câmera — foto no Drive!';
+                } else {
+                    if (qrSubtext) qrSubtext.innerText = '📷 Aponte a câmera do celular.';
                 }
-            } catch (e) {}
-
-            // ── FASE 3: Atualiza QR com link de download (ou mantém page URL) ──
-            if (downloadUrl) {
-                renderQR(container, downloadUrl, 100);
-                if (qrSubtext) qrSubtext.innerText = '📥 Aponte a câmera — baixa direto!';
-            } else {
-                if (qrSubtext) qrSubtext.innerText = '📷 Aponte a câmera do seu celular.';
+            } catch (e) {
+                if (qrSubtext) qrSubtext.innerText = '📷 Aponte a câmera do celular.';
             }
         }
 
