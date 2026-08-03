@@ -92,15 +92,15 @@
             }
         }
 
-        /* Estilos Exclusivos para Impressão Direct Canon 10x15cm */
+        /* Estilos Exclusivos para Impressão Direct Canon / Photo Printers 4x6" (10x15cm) */
         @media print {
             @page {
-                size: 100mm 150mm portrait;
-                margin: 0mm;
+                size: 4in 6in portrait;
+                margin: 0;
             }
             html, body {
-                width: 100mm !important;
-                height: 150mm !important;
+                width: 4in !important;
+                height: 6in !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 background: white !important;
@@ -116,8 +116,8 @@
                 position: fixed !important;
                 left: 0 !important;
                 top: 0 !important;
-                width: 100mm !important;
-                height: 150mm !important;
+                width: 4in !important;
+                height: 6in !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 background: white !important;
@@ -126,8 +126,8 @@
             }
             #print-area img {
                 display: block !important;
-                width: 100mm !important;
-                height: 150mm !important;
+                width: 4in !important;
+                height: 6in !important;
                 object-fit: fill !important;
                 margin: 0 !important;
                 padding: 0 !important;
@@ -251,15 +251,15 @@
                 <p class="text-[10px] sm:text-xs text-slate-300 mt-0.5">Escolha uma opção abaixo para baixar ou imprimir.</p>
             </div>
 
-            <!-- Bloco do QR Code -->
-            <div class="w-full bg-slate-950 p-2.5 sm:p-3 rounded-xl border border-slate-800 flex items-center gap-3">
+            <!-- Bloco do QR Code Exclusivo (Download Direto) -->
+            <div id="qr-box-container" onclick="openExclusivePhotoLink()" class="w-full bg-slate-950 p-2.5 sm:p-3 rounded-xl border border-slate-800 flex items-center gap-3 cursor-pointer hover:border-pink-500/50 transition">
                 <div id="qrcode" class="p-1 bg-white rounded-lg flex-shrink-0 shadow-md min-w-[90px] min-h-[90px] flex items-center justify-center">
                     <div id="qr-loading-spinner" class="w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
                 <div>
-                    <span class="text-[9px] font-black tracking-wider uppercase text-pink-400">Download Digital</span>
-                    <h4 class="text-xs sm:text-sm font-bold text-white">Baixar no Celular</h4>
-                    <p id="qr-subtext" class="text-[9px] sm:text-xs text-slate-400 mt-0.5">Aponte a câmera do seu celular.</p>
+                    <span class="text-[9px] font-black tracking-wider uppercase text-pink-400">Download Direto Sem Drive</span>
+                    <h4 class="text-xs sm:text-sm font-bold text-white">Baixar Foto no Celular</h4>
+                    <p id="qr-subtext" class="text-[9px] sm:text-xs text-slate-400 mt-0.5">Aponte a câmera para baixar sua foto diretamente.</p>
                 </div>
             </div>
 
@@ -419,8 +419,12 @@
                         <label class="font-bold text-slate-300 uppercase text-xs">Google Drive (QR Code)</label>
                         <span id="gdrive-status-badge" class="ml-auto text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 border border-slate-600">Não configurado</span>
                     </div>
+                    <div class="mb-2">
+                        <label class="font-bold text-slate-400 uppercase text-[10px]">URL da Pasta do Drive (QR Code Geral)</label>
+                        <input type="text" id="cfg-drive-folder-url" placeholder="https://drive.google.com/drive/folders/..." class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold text-[10px] focus:outline-none focus:border-emerald-500 font-mono">
+                    </div>
                     <div>
-                        <label class="font-bold text-slate-400 uppercase text-[10px]">URL do Apps Script</label>
+                        <label class="font-bold text-slate-400 uppercase text-[10px]">URL do Apps Script (Upload)</label>
                         <input type="text" id="cfg-apps-script-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-semibold text-[10px] focus:outline-none focus:border-emerald-500 font-mono">
                         <p class="text-[9px] text-slate-500 mt-1">Cole a URL gerada após implantar o Apps Script como <span class="text-emerald-400">App da Web</span></p>
                     </div>
@@ -601,10 +605,11 @@
                 function onMessage(event) {
                     try {
                         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                        if (data && data.viewUrl) {
+                        const targetUrl = data?.downloadUrl || data?.viewUrl;
+                        if (targetUrl) {
                             isResolved = true;
                             window.removeEventListener('message', onMessage);
-                            resolve(data.viewUrl);
+                            resolve(getDirectDownloadUrl(targetUrl));
                         }
                     } catch(e) {}
                 }
@@ -631,14 +636,14 @@
                 document.body.appendChild(form);
                 form.submit();
 
-                // Fallback: se em 3s não recebeu postMessage, usa a URL da pasta do Drive
+                // Fallback: se em 12s não recebeu postMessage, usa a URL da pasta do Drive
                 setTimeout(() => {
                     form.remove();
                     window.removeEventListener('message', onMessage);
                     if (!isResolved) {
                         resolve(config.driveFolderUrl || null);
                     }
-                }, 3000);
+                }, 12000);
             });
         }
         // ────────────────────────────────────────────────────────────
@@ -665,8 +670,8 @@
     img { display: block; width: 4in; height: 6in; object-fit: fill; page-break-after: avoid; }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100mm; height: 150mm; background: white; overflow: hidden; }
-  img { display: block; width: 100mm; height: 150mm; object-fit: fill; }
+  html, body { width: 4in; height: 6in; background: white; overflow: hidden; }
+  img { display: block; width: 4in; height: 6in; object-fit: fill; }
 </style>
 </head><body><img src="${dataUrl}"></body></html>`;
 
@@ -1308,24 +1313,55 @@
             }
         }
 
+        function getDirectDownloadUrl(url) {
+            if (!url) return url;
+            if (url.includes('export=download') || url.startsWith('data:')) return url;
+            
+            // Converte URL de visualização do Google Drive em URL de Download Direto
+            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+            if (match && match[1]) {
+                const fileId = match[1];
+                return `https://drive.google.com/uc?export=download&id=${fileId}`;
+            }
+            return url;
+        }
+
+        let latestPhotoUrl = null;
+
+        function openExclusivePhotoLink() {
+            if (latestPhotoUrl) {
+                window.open(latestPhotoUrl, '_blank');
+            }
+        }
+
         async function generateQRCodeCloud(canvas, fallbackDataUrl) {
             const container = document.getElementById('qrcode');
             const qrSubtext = document.getElementById('qr-subtext');
 
-            // ── FASE 1: QR aparece IMEDIATAMENTE indicando o envio ──
-            if (qrSubtext) qrSubtext.innerText = '⏳ Enviando foto ao Drive...';
-            const folderUrl = config.driveFolderUrl || window.location.href;
-            renderQR(container, folderUrl, 100);
+            latestPhotoUrl = null;
+            if (qrSubtext) qrSubtext.innerText = '⏳ Gerando link de download direto...';
 
-            // ── FASE 2: Upload para o Google Drive ──
+            // FASE 1: QR temporário enquanto o upload é concluído no Google Drive
+            const tempUrl = config.driveFolderUrl || window.location.href;
+            renderQR(container, tempUrl, 100);
+
             const fileName = `foto_${Date.now()}.jpg`;
 
             try {
                 if (config.appsScriptUrl) {
                     const photoUrl = await uploadViaAppsScript(canvas, fileName);
                     if (photoUrl) {
-                        renderQR(container, photoUrl, 100);
-                        if (qrSubtext) qrSubtext.innerText = '📥 Aponte a câmera — sua foto no Drive!';
+                        const directDownloadUrl = getDirectDownloadUrl(photoUrl);
+                        latestPhotoUrl = directDownloadUrl;
+                        // ── FASE 2: Atualiza o QR Code com a URL DE DOWNLOAD DIRETO ──
+                        renderQR(container, directDownloadUrl, 100);
+                        if (qrSubtext) {
+                            if (directDownloadUrl !== config.driveFolderUrl) {
+                                qrSubtext.innerText = '⚡ DOWNLOAD DIRETO! Aponte a câmera para baixar sua foto.';
+                            } else {
+                                qrSubtext.innerText = '📥 Aponte a câmera — foto salva no Drive!';
+                            }
+                        }
                     }
                 } else {
                     if (qrSubtext) qrSubtext.innerText = '📷 Aponte a câmera do celular.';
@@ -1397,6 +1433,8 @@
             document.getElementById('cfg-sound').value = config.shutterSound;
             document.getElementById('cfg-pin').value = config.adminPin;
             document.getElementById('cfg-autoprint').checked = config.autoPrint;
+            const folderEl = document.getElementById('cfg-drive-folder-url');
+            if (folderEl) folderEl.value = config.driveFolderUrl || '';
             const asEl = document.getElementById('cfg-apps-script-url');
             if (asEl) asEl.value = config.appsScriptUrl || '';
             // Atualiza badge do Drive
@@ -1436,6 +1474,8 @@
             config.shutterSound = document.getElementById('cfg-sound').value || "dslr";
             config.adminPin = document.getElementById('cfg-pin').value || "1234";
             config.autoPrint = document.getElementById('cfg-autoprint').checked;
+            const folderEl = document.getElementById('cfg-drive-folder-url');
+            if (folderEl) config.driveFolderUrl = folderEl.value.trim();
             const asEl = document.getElementById('cfg-apps-script-url');
             if (asEl) config.appsScriptUrl = asEl.value.trim();
 
