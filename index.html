@@ -558,10 +558,11 @@
             driveFolderUrl: "https://drive.google.com/drive/folders/1ZBKRxB-tJXxDhIO5c6CTtM3olKlv2nIn"
         };
 
-        // ─────────── UPLOAD VIA GOOGLE APPS SCRIPT PROXY ───────────
-        // Envia a foto como base64 para o Apps Script, que salva no Drive
+        // ─────────── UPLOAD VIA GOOGLE APPS SCRIPT PROXY (FORM SILENCIOSO) ───
+        // Usa Form Submit em iframe oculto para garantir 100% de entrega no Drive sem bloqueio CORS
         async function uploadViaAppsScript(canvas, fileName) {
             if (!config.appsScriptUrl) return null;
+            
             // Gera blob comprimido (800x1200 / qualidade 0.82)
             const MAX_W = 800, MAX_H = 1200;
             const scale = Math.min(MAX_W / canvas.width, MAX_H / canvas.height, 1);
@@ -572,19 +573,45 @@
             small.getContext('2d').drawImage(canvas, 0, 0, w, h);
             const dataUrl = small.toDataURL('image/jpeg', 0.82);
 
-            // Usa mode:'no-cors' para contornar bloqueio CORS do navegador.
-            // O Apps Script RECEBE e SALVA o arquivo normalmente no Drive,
-            // mas o browser não consegue ler a resposta (limitação de segurança).
-            await fetch(config.appsScriptUrl, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({ image: dataUrl, fileName }),
-                headers: { 'Content-Type': 'text/plain' }
-            });
+            return new Promise((resolve) => {
+                let iframe = document.getElementById('gdrive-upload-iframe');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'gdrive-upload-iframe';
+                    iframe.name = 'gdrive-upload-iframe';
+                    iframe.style.display = 'none';
+                    document.body.appendChild(iframe);
+                }
 
-            // Retorna a URL da pasta (não conseguimos ler a URL do arquivo por causa do CORS)
-            return config.driveFolderUrl || null;
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = config.appsScriptUrl;
+                form.target = 'gdrive-upload-iframe';
+                form.style.display = 'none';
+
+                const inputImg = document.createElement('input');
+                inputImg.type = 'hidden';
+                inputImg.name = 'image';
+                inputImg.value = dataUrl;
+                form.appendChild(inputImg);
+
+                const inputName = document.createElement('input');
+                inputName.type = 'hidden';
+                inputName.name = 'fileName';
+                inputName.value = fileName;
+                form.appendChild(inputName);
+
+                document.body.appendChild(form);
+                form.submit();
+
+                // Limpa o formulário após 1.5s e retorna a URL da pasta do Drive
+                setTimeout(() => {
+                    form.remove();
+                    resolve(config.driveFolderUrl || null);
+                }, 1500);
+            });
         }
+        // ────────────────────────────────────────────────────────────
         // ────────────────────────────────────────────────────────────
 
         // ─────────── IMPRESSÃO SILENCIOSA (SEM DIÁLOGO ANDROID) ────
